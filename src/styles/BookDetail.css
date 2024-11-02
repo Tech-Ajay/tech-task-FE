@@ -1,0 +1,233 @@
+.pdp-loading-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(to bottom right, #EBF4FF, #E0E7FF);
+}
+
+.pdp-loading-text {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #4F46E5;
+}
+
+.pdp-container {
+    min-height: 100vh;
+    background: linear-gradient(to bottom right, #EBF4FF, #E0E7FF);
+    padding: 3rem 0rem;
+}
+
+.pdp-wrapper {
+    max-width: 56rem;
+    margin: 0 auto;
+}
+
+.pdp-card {
+    background: white;
+    border-radius: 0.75rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+}
+
+.pdp-content {
+    display: flex;
+    flex-direction: column;
+}
+
+@media (min-width: 768px) {
+    .pdp-content {
+        flex-direction: row;
+    }
+}
+
+.pdp-image-container {
+    flex-shrink: 0;
+}
+
+.pdp-image {
+    height: 24rem;
+    width: 100%;
+    object-fit: contain;
+}
+
+@media (min-width: 768px) {
+    .pdp-image {
+        width: 20rem;
+    }
+}
+
+.pdp-image-placeholder {
+    height: 24rem;
+    width: 100%;
+    background-color: #E5E7EB;
+}
+
+@media (min-width: 768px) {
+    .pdp-image-placeholder {
+        width: 12rem;
+    }
+}
+
+.pdp-info {
+    padding: 2rem;
+}
+
+.pdp-author {
+    text-transform: uppercase;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #6366F1;
+    letter-spacing: 0.05em;
+}
+
+.pdp-title {
+    margin-top: 0.25rem;
+    font-size: 1.875rem;
+    line-height: 1.25;
+    font-weight: 700;
+    color: #111827;
+}
+
+.pdp-date {
+    margin-top: 0.5rem;
+    color: #6B7280;
+}
+
+.pdp-description {
+    margin-top: 1rem;
+    color: #374151;
+}
+
+.pdp-back-button {
+    margin-top: 1.5rem;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: white;
+    background-color: #ff4e4e;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.pdp-back-button:hover {
+    background-color: #fe0d0d;
+    box-shadow: 0 4px 4px 0 rgba(0, 0, 0, 0.2);
+}
+
+.pdp-related {
+    margin-top: 3rem;
+}
+
+.pdp-related-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 1.5rem;
+    padding-left: 2rem;
+}
+
+.pdp-related-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .pdp-wrapper {
+        margin: 20px;
+    }
+}
+@media (min-width: 768px) {
+    .pdp-related-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.pdp-related-card {
+    background: white;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.pdp-related-card:hover {
+    transform: translateY(-2px);
+}
+
+.pdp-related-image-container {
+    height: 200px;
+    overflow: hidden;
+}
+
+.pdp-related-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.pdp-related-image-placeholder {
+    width: 100%;
+    height: 100%;
+    background-color: #E5E7EB;
+}
+
+.pdp-related-info {
+    padding: 1rem;
+}
+
+.pdp-related-book-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 0.5rem;
+}
+
+.pdp-related-book-date {
+    font-size: 0.875rem;
+    color: #6B7280;
+}
+
+.pdp-related-scroll {
+    width: 100%;
+    overflow: hidden;
+    position: relative;
+}
+
+.pdp-related-track {
+    display: flex;
+    width: fit-content;
+    animation: scroll 10s linear infinite;
+}
+
+.pdp-related-track:hover {
+    animation-play-state: paused;
+}
+
+@keyframes scroll {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        /* This will be the width of one complete set of items */
+        transform: translateX(calc(-100% / 4));
+    }
+}
+
+.pdp-related-card {
+    flex: 0 0 300px; /* Fixed width for each card */
+    margin-right: 20px;
+    transition: transform 1s;
+}
+
+/* Optional: Add some hover effect */
+.pdp-related-card:hover {
+    transform: scale(1.05);
+} 

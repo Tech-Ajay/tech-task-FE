@@ -36,12 +36,14 @@ export const findBookById = async (id: number): Promise<Book | null> => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                query: `query($id: Int) { 
+                query: `query($id: Int!) { 
                     findBookById(id: $id) { 
                         id 
                         title 
                         author 
                         publishedDate 
+                        description
+                        imageUrl
                     } 
                 }`,
                 variables: { id }
@@ -276,6 +278,38 @@ export const findAllBooksSorted = async (sortField: SortField, sortOrder: SortOr
         return result.data.findAllBooksSorted;
     } catch (error) {
         console.error('Error fetching sorted books:', error);
+        return [];
+    }
+};
+
+export const findBooksByAuthorContaining = async (author: string): Promise<Book[]> => {
+    try {
+        const response = await fetch(GRAPHQL_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                query: `
+                query($author: String!) { 
+                    findBooksByAuthorContaining(author: $author) { 
+                        id 
+                        title 
+                        author 
+                        publishedDate 
+                        description 
+                        imageUrl 
+                    } 
+                }`,
+                variables: { author }
+            }),
+        });
+
+        const result = await response.json();
+        if (result.errors) {
+            throw new Error(result.errors[0].message);
+        }
+        return result.data.findBooksByAuthorContaining;
+    } catch (error) {
+        console.error('Error fetching books by author:', error);
         return [];
     }
 };

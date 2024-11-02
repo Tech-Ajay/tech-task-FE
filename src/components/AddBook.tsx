@@ -1,196 +1,301 @@
-import React, { useState } from 'react';
+'use client'
+
+import React, { useState, useRef } from 'react'
 import { useDispatch } from 'react-redux';
 import { addBook } from '../features/bookReducer';
 import { createBook } from '../api/api';
+import '../styles/AddBook.css';
+import { useNavigate } from 'react-router-dom';
 
-const AddBook = () => {
+// Add interface for errors
+interface FormErrors {
+    title: string;
+    author: string;
+    publishedDate: string;
+    description?: string; // Make description optional
+}
+
+export default function AddBook() {
     const dispatch = useDispatch();
-    const [title, setTitle] = useState('');
-    const [authorName, setAuthorName] = useState('');
-    const [publishedDate, setPublishedDate] = useState('');
-    const [apiError, setApiError] = useState('');
-    const [successMessage, setSuccessMessage] = useState('');
-    const [errors, setErrors] = useState({
+    const [title, setTitle] = useState('')
+    const [author, setAuthor] = useState('')
+    const [publishedDate, setPublishedDate] = useState('')
+    const [description, setDescription] = useState('')
+    const [image, setImage] = useState<File | null>(null)
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+    const fileInputRef = useRef<HTMLInputElement>(null)
+    const [apiError, setApiError] = useState('')
+    const [successMessage, setSuccessMessage] = useState('')
+    const [errors, setErrors] = useState<FormErrors>({
         title: '',
         author: '',
-        publishedDate: ''
-    });
-    const [description, setDescription] = useState('');
-    const [imageUrl, setImageUrl] = useState('');
+        publishedDate: '',
+        description: ''
+    })
+    const [isUploading, setIsUploading] = useState(false)
+    const navigate = useNavigate();
 
-    const validateForm = () => {
-        let isValid = true;
-        const newErrors = {
-            title: '',
-            author: '',
-            publishedDate: ''
-        };
-
-        // Title validation
-        if (!title.trim()) {
-            newErrors.title = 'Title is required';
-            isValid = false;
-        }
-
-        // Author validation
-        if (!authorName.trim()) {
-            newErrors.author = 'Author name is required';
-            isValid = false;
-        }
-
-        // Published date validation
-        if (!publishedDate) {
-            newErrors.publishedDate = 'Published date is required';
-            isValid = false;
-        } else {
-            const selectedDate = new Date(publishedDate);
-            const currentDate = new Date();
-            if (selectedDate > currentDate) {
-                newErrors.publishedDate = 'Published date cannot be in the future';
-                isValid = false;
-            }
-        }
-
-        setErrors(newErrors);
-        return isValid;
-    };
-
-    const clearForm = () => {
-        setTitle('');
-        setAuthorName('');
-        setPublishedDate('');
-        setErrors({
-            title: '',
-            author: '',
-            publishedDate: ''
-        });
-        setApiError('');
-    };
-
-    const handleAddBook = async () => {
-        setApiError(''); // Clear any previous API errors
-        setSuccessMessage(''); // Clear any previous success messages
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setApiError('')
+        setSuccessMessage('')
 
         if (!validateForm()) {
-            return;
+            return
         }
 
         try {
             const newBook = await createBook({
                 title: title.trim(),
-                author: authorName.trim(),
+                author: author.trim(),
                 publishedDate,
                 description: description.trim(),
-                imageUrl: imageUrl.trim()
-            });
-            dispatch(addBook(newBook));
+                imageUrl: previewUrl || undefined // Convert null to undefined
+            })
+            dispatch(addBook(newBook))
+            setSuccessMessage('Book added successfully!')
+            clearForm()
             
-            // Show success message
-            setSuccessMessage('Book added successfully!');
-            
-            // Clear form after successful addition
-            clearForm();
-
-            // Clear success message after 3 seconds
+            // Navigate back to books list after successful addition
             setTimeout(() => {
-                setSuccessMessage('');
-            }, 3000);
-
+                navigate('/');
+            }, 1500);
         } catch (error) {
-            console.error('Failed to add book:', error);
-            setApiError(error instanceof Error ? error.message : 'Failed to add book. Please try again.');
+            console.error('Failed to add book:', error)
+            setApiError(error instanceof Error ? error.message : 'Failed to add book. Please try again.')
         }
-    };
+    }
+
+    const validateForm = () => {
+        let isValid = true
+        const newErrors = {
+            title: '',
+            author: '',
+            publishedDate: ''
+        }
+
+        if (!title.trim()) {
+            newErrors.title = 'Title is required'
+            isValid = false
+        }
+
+        if (!author.trim()) {
+            newErrors.author = 'Author name is required'
+            isValid = false
+        }
+
+        if (!publishedDate) {
+            newErrors.publishedDate = 'Published date is required'
+            isValid = false
+        } else {
+            const selectedDate = new Date(publishedDate)
+            const currentDate = new Date()
+            if (selectedDate > currentDate) {
+                newErrors.publishedDate = 'Published date cannot be in the future'
+                isValid = false
+            }
+        }
+
+        setErrors(newErrors)
+        return isValid
+    }
+
+    const clearForm = () => {
+        setTitle('')
+        setAuthor('')
+        setPublishedDate('')
+        setDescription('')
+        setImage(null)
+        setPreviewUrl(null)
+        setErrors({
+            title: '',
+            author: '',
+            publishedDate: ''
+        })
+        setApiError('')
+    }
+
+    const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (file) {
+            setImage(file)
+            setIsUploading(true)
+
+            // Show preview immediately
+            const reader = new FileReader()
+            reader.onloadend = () => {
+                setPreviewUrl(reader.result as string)
+            }
+            reader.readAsDataURL(file)
+
+            // Upload image
+            const formData = new FormData()
+            formData.append('file', file)
+
+            try {
+                const response = await fetch('https://supertails-backend.el.r.appspot.com/upload', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json',
+                    }
+                })
+                
+                if (response.ok) {
+                    const responseData = await response.json()
+                    setPreviewUrl(responseData.url)
+                } else {
+                    throw new Error('Failed to upload image')
+                }
+            } catch (error) {
+                console.error('Error uploading image:', error)
+                setApiError('Failed to upload image. Please try again.')
+                setImage(null)
+                setPreviewUrl(null)
+            } finally {
+                setIsUploading(false)
+            }
+        }
+    }
+
+    const handleImageClick = () => {
+        fileInputRef.current?.click()
+    }
 
     return (
-        <div className="add-book-form">
-            <h2>Add Book</h2>
-            
-            {/* Success Message */}
-            {successMessage && (
-                <div className="success-message">
-                    {successMessage}
+        <div className="books-container">
+            <div className="books-wrapper">
+                <div className="header-container">
+                    <h1 className="books-title">Add a New Book</h1>
+                    <button 
+                        className="back-button"
+                        onClick={() => navigate('/')}
+                    >
+                        Back to Books
+                    </button>
                 </div>
-            )}
+                <div className="add-book-form-container">
+                    {successMessage && (
+                        <div className="success-message">
+                            {successMessage}
+                        </div>
+                    )}
+                    
+                    {apiError && (
+                        <div className="api-error-message">
+                            {apiError}
+                        </div>
+                    )}
 
-            {/* API Error Message */}
-            {apiError && (
-                <div className="api-error-message">
-                    {apiError}
+                    <form onSubmit={handleSubmit} className="form-spacing">
+                        <div className="image-upload-container">
+                            <div onClick={handleImageClick} className="image-upload-area">
+                                {isUploading ? (
+                                    <div className="loader">Uploading...</div>
+                                ) : previewUrl ? (
+                                    <img src={previewUrl} alt="Book cover preview" className="preview-image" />
+                                ) : (
+                                    <span className="upload-text">Click to add book cover</span>
+                                )}
+                            </div>
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/*"
+                                onChange={handleImageChange}
+                                className="hidden"
+                            />
+                        </div>
+                        <div className="form-grid">
+                            <div>
+                                <label htmlFor="title" className="form-label">
+                                    Title
+                                </label>
+                                <input
+                                    id="title"
+                                    value={title}
+                                    onChange={(e) => {
+                                        setTitle(e.target.value)
+                                        if (errors.title) {
+                                            setErrors({ ...errors, title: '' })
+                                        }
+                                    }}
+                                    style={{
+                                        width: '95%'
+                                    }}
+                                    className={`form-input ${errors.title ? 'error' : ''}`}
+                                    required
+                                />
+                                {errors.title && <span className="error-message">{errors.title}</span>}
+                            </div>
+                            <div>
+                                <label htmlFor="author" className="form-label">
+                                    Author
+                                </label>
+                                <input
+                                    id="author"
+                                    value={author}
+                                    onChange={(e) => {
+                                        setAuthor(e.target.value)
+                                        if (errors.author) {
+                                            setErrors({ ...errors, author: '' })
+                                        }
+                                    }}
+                                    style={{
+                                        width: '95%'
+                                    }}
+                                    className={`form-input ${errors.author ? 'error' : ''}`}
+                                    required
+                                />
+                                {errors.author && <span className="error-message">{errors.author}</span>}
+                            </div>
+                        </div>
+                        <div className="form-spacing">
+                            <label htmlFor="publishedDate" className="form-label">
+                                Published Date
+                            </label>
+                            <input
+                                id="publishedDate"
+                                type="date"
+                                value={publishedDate}
+                                onChange={(e) => {
+                                    setPublishedDate(e.target.value)
+                                    if (errors.publishedDate) {
+                                        setErrors({ ...errors, publishedDate: '' })
+                                    }
+                                }}
+                                className={`form-input ${errors.publishedDate ? 'error' : ''}`}
+                                required
+                            />
+                            {errors.publishedDate && <span className="error-message">{errors.publishedDate}</span>}
+                        </div>
+                        <div className="form-spacing">
+                            <label htmlFor="description" className="form-label">
+                                Description
+                            </label>
+                            <textarea
+                                id="description"
+                                value={description}
+                                onChange={(e) => {
+                                    setDescription(e.target.value)
+                                    if (errors.description) {
+                                        setErrors({ ...errors, description: '' })
+                                    }
+                                }}
+                                rows={4}
+                                className={`form-input ${errors.description ? 'error' : ''}`}
+                                required
+                            />
+                            {errors.description && <span className="error-message">{errors.description}</span>}
+                        </div>
+                        <div className="form-spacing">
+                            <button type="submit" className="submit-button">
+                                Add Book
+                            </button>
+                        </div>
+                    </form>
                 </div>
-            )}
-
-            <div className="form-group">
-                <input
-                    type="text"
-                    placeholder="Title"
-                    value={title}
-                    onChange={(e) => {
-                        setTitle(e.target.value);
-                        if (errors.title) {
-                            setErrors({ ...errors, title: '' });
-                        }
-                    }}
-                    className={errors.title ? 'error' : ''}
-                />
-                {errors.title && <span className="error-message">{errors.title}</span>}
             </div>
-
-            <div className="form-group">
-                <input
-                    type="text"
-                    placeholder="Author Name"
-                    value={authorName}
-                    onChange={(e) => {
-                        setAuthorName(e.target.value);
-                        if (errors.author) {
-                            setErrors({ ...errors, author: '' });
-                        }
-                    }}
-                    className={errors.author ? 'error' : ''}
-                />
-                {errors.author && <span className="error-message">{errors.author}</span>}
-            </div>
-
-            <div className="form-group">
-                <input
-                    type="date"
-                    placeholder="Published Date"
-                    value={publishedDate}
-                    onChange={(e) => {
-                        setPublishedDate(e.target.value);
-                        if (errors.publishedDate) {
-                            setErrors({ ...errors, publishedDate: '' });
-                        }
-                    }}
-                    className={errors.publishedDate ? 'error' : ''}
-                />
-                {errors.publishedDate && (
-                    <span className="error-message">{errors.publishedDate}</span>
-                )}
-            </div>
-
-            <div className="form-group">
-                <textarea
-                    placeholder="Description (optional)"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    rows={4}
-                />
-            </div>
-
-            <div className="form-group">
-                <input
-                    type="url"
-                    placeholder="Image URL (optional)"
-                    value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
-                />
-            </div>
-
-            <button onClick={handleAddBook}>Add</button>
         </div>
-    );
-};
-
-export default AddBook;
+    )
+}
