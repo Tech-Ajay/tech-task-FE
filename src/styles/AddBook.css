@@ -96,8 +96,6 @@
 
 .form-input:focus {
   outline: none;
-  ring: 2px;
-  ring-color: #6366f1;
   border-color: #6366f1;
 }
 
@@ -116,9 +114,6 @@
 
 .submit-button:focus {
   outline: none;
-  ring: 2px;
-  ring-color: #6366f1;
-  ring-offset: 2px;
 }
 
 .submit-button:disabled {

@@ -48,8 +48,6 @@
 
 .search-input:focus {
   outline: none;
-  ring: 2px;
-  ring-color: #6366F1;
 }
 
 .select-control {
@@ -60,8 +58,6 @@
 
 .select-control:focus {
   outline: none;
-  ring: 2px;
-  ring-color: #6366F1;
 }
 
 .books-grid {
