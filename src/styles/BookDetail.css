@@ -19,8 +19,10 @@
 }
 
 .pdp-wrapper {
-    max-width: 56rem;
     margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .pdp-card {
@@ -28,6 +30,9 @@
     border-radius: 0.75rem;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
     overflow: hidden;
+    width: 50%;
+    max-width: 70%;
+
 }
 
 .pdp-content {
@@ -39,15 +44,27 @@
     .pdp-content {
         flex-direction: row;
     }
+
+    .pdp-card {
+        padding: 20px;
+        display: flex;
+        align-items: center;
+    }
 }
 
 .pdp-image-container {
     flex-shrink: 0;
+    width: 300px;
+    height: 400px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-right: 20px;
 }
 
 .pdp-image {
-    height: 24rem;
-    width: 100%;
+    max-width: 100%;
+    max-height: 100%;
     object-fit: contain;
 }
 
@@ -116,7 +133,7 @@
 }
 
 .pdp-back-button:hover {
-    background-color: #fe0d0d;
+    background-color: #4F46E5;
     box-shadow: 0 4px 4px 0 rgba(0, 0, 0, 0.2);
 }
 
@@ -143,6 +160,7 @@
         margin: 20px;
     }
 }
+
 @media (min-width: 768px) {
     .pdp-related-grid {
         grid-template-columns: repeat(2, 1fr);
@@ -163,19 +181,21 @@
 }
 
 .pdp-related-image-container {
-    height: 200px;
+    height: 300px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     overflow: hidden;
 }
 
 .pdp-related-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
 }
 
 .pdp-related-image-placeholder {
     width: 100%;
-    height: 100%;
     background-color: #E5E7EB;
 }
 
@@ -215,6 +235,7 @@
     0% {
         transform: translateX(0);
     }
+
     100% {
         /* This will be the width of one complete set of items */
         transform: translateX(calc(-100% / 4));
@@ -222,7 +243,8 @@
 }
 
 .pdp-related-card {
-    flex: 0 0 300px; /* Fixed width for each card */
+    flex: 0 0 300px;
+    /* Fixed width for each card */
     margin-right: 20px;
     transition: transform 1s;
 }
@@ -230,4 +252,32 @@
 /* Optional: Add some hover effect */
 .pdp-related-card:hover {
     transform: scale(1.05);
-} 
+}
+
+.pdp-error-container {
+    background: linear-gradient(to bottom right, #EBF4FF, #E0E7FF);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 400px;
+    padding: 2rem;
+    height: 95vh;
+    overflow: hidden;
+}
+
+.pdp-error-content {
+    text-align: center;
+    max-width: 400px;
+}
+
+.pdp-error-title {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    color: #e74c3c;
+}
+
+.pdp-error-message {
+    font-size: 1.2rem;
+    margin-bottom: 2rem;
+    color: #666;
+}

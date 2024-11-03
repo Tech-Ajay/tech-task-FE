@@ -6,6 +6,8 @@ import { findAllBooksSorted, deleteBook as deleteBookApi } from '../api/api';
 import { SortField, SortOrder } from '../features/bookReducer';
 import '../styles/Books.css';
 import { useNavigate } from 'react-router-dom';
+import ImageCache from './ImageCache';
+import ConfirmDialog from './subComponents/ConfirmDialog';
 
 const BooksList = () => {
     const books = useSelector((state: RootState) => state.books.books);
@@ -18,6 +20,7 @@ const BooksList = () => {
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const navigate = useNavigate();
+    const [bookToDelete, setBookToDelete] = useState<number | null>(null);
 
     useEffect(() => {
         const loadInitialBooks = async () => {
@@ -30,7 +33,7 @@ const BooksList = () => {
             }
         };
         loadInitialBooks();
-    }, []);
+    }, [dispatch, sortBy, sortOrder]);
 
     useEffect(() => {
         const loadSortedBooks = async () => {
@@ -55,6 +58,7 @@ const BooksList = () => {
         } catch (error) {
             console.error('Error deleting book:', error);
         }
+        setBookToDelete(null);
     };
 
     const filteredAndSortedBooks = books
@@ -123,20 +127,28 @@ const BooksList = () => {
     }, []);
 
     if (!books || books.length === 0) {
-        return (<div className="books-container">
-              <div className="books-wrapper">
-                <div className="header-container">
-                    <h1 className="books-title">Book Collection</h1>
-                    <button 
-                        className="add-book-button"
-                        onClick={() => navigate('/add-book')}
-                    >
-                        Add New Book
-                    </button>
+        return (
+            <div className="books-container">
+                <div className="books-wrapper">
+                    <div className="header-container">
+                        <h1 className="books-title">Book Collection</h1>
+                        <button 
+                            className="add-book-button"
+                            onClick={() => navigate('/add-book')}
+                        >
+                            Add New Book
+                        </button>
+                    </div>
+                    <div className="no-books-container">
+                        <div className="no-books" onClick={() => navigate('/add-book')}>
+                            <span>📚</span>
+                            <p>Your book collection is empty</p>
+                            <p>Click "Add New Book" to get started!</p>
+                        </div>
+                    </div>
                 </div>
-                </div>
-                <div className="no-books">No books available</div>
-                </div>);
+            </div>
+        );
     }
 
     return (
@@ -213,43 +225,55 @@ const BooksList = () => {
                     </div>
                 </div>
                 <div className="books-grid">
-                    {filteredAndSortedBooks.map((book) => (
-                        <div key={book.id} className="book-card" onClick={() => navigate(`/book/${book.id}`)}>
-                            {book.imageUrl ? (
-                                <img 
-                                    src={book.imageUrl} 
-                                    alt={book.title} 
-                                    className="book-image"
-                                    onError={(e) => {
-                                        (e.target as HTMLImageElement).style.display = 'none';
-                                    }}
-                                />
-                            ): <div className="book-image"></div>}
-                            <div className="book-info">
-                                <h2 className="book-title">{book.title}</h2>
-                                <p className="book-author">by {book.author}</p>
-                                <p className="book-date">
-                                    Published: {new Date(book.publishedDate).toLocaleDateString()}
-                                </p>
-                                {book.description && (
-                                    <p className="book-description">{book.description}</p>
-                                )}
-                            </div>
-                            <div className="book-action">
-                                <button 
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDelete(book.id);
-                                    }}
-                                    className="view-details-button"
-                                >
-                                    Delete
-                                </button>
-                            </div>
+                    {filteredAndSortedBooks.length === 0 ? (
+                        <div className="no-results">
+                            <p>No books found for "{searchTerm}"</p>
                         </div>
-                    ))}
+                    ) : (
+                        filteredAndSortedBooks.map((book) => (
+                            <div key={book.id} className="book-card" onClick={() => navigate(`/book/${book.id}`)}>
+                                {book.imageUrl ? (
+                                    <ImageCache 
+                                        src={book.imageUrl} 
+                                        alt={book.title} 
+                                        className="book-image"
+                                        onError={(e) => {
+                                            (e.target as HTMLImageElement).style.display = 'none';
+                                        }}
+                                    />
+                                ): <div className="book-image"></div>}
+                                <div className="book-info">
+                                    <h2 className="book-title">{book.title}</h2>
+                                    <p className="book-author">by {book.author}</p>
+                                    <p className="book-date">
+                                        Published: {new Date(book.publishedDate).toLocaleDateString()}
+                                    </p>
+                                    {book.description && (
+                                        <p className="book-description">{book.description}</p>
+                                    )}
+                                </div>
+                                <div className="book-action">
+                                    <button 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setBookToDelete(book.id);
+                                        }}
+                                        className="view-details-button"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        ))
+                    )}
                 </div>
             </div>
+            <ConfirmDialog
+                isOpen={bookToDelete !== null}
+                message="Are you sure you want to delete this book?"
+                onConfirm={() => bookToDelete && handleDelete(bookToDelete)}
+                onCancel={() => setBookToDelete(null)}
+            />
         </div>
     );
 };

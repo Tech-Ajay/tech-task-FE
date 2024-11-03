@@ -99,6 +99,17 @@
   width: 100%;
   height: 16rem;
   object-fit: contain;
+  display: block;
+  margin: 0 auto;
+}
+
+.book-image-container {
+  width: 100%;
+  height: 16rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: white;
 }
 
 .book-info {
@@ -233,4 +244,40 @@
 
 .back-button:hover {
     background-color: #4B5563;
+}
+
+.no-books-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 300px;
+    cursor: pointer;
+}
+
+.no-books {
+    text-align: center;
+    color: #666;
+}
+
+.no-books span {
+    font-size: 48px;
+    display: block;
+    margin-bottom: 16px;
+}
+
+.no-books p {
+    margin: 8px 0;
+    font-size: 16px;
+}
+
+.no-results {
+    width: 100%;
+    text-align: center;
+    padding: 2rem;
+    font-size: 1.2rem;
+    color: #666;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    grid-column: 1 / -1;
 }

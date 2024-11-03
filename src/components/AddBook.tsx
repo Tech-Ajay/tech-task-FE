@@ -6,6 +6,7 @@ import { addBook } from '../features/bookReducer';
 import { createBook } from '../api/api';
 import '../styles/AddBook.css';
 import { useNavigate } from 'react-router-dom';
+import ImageCache from './ImageCache';
 
 // Add interface for errors
 interface FormErrors {
@@ -21,7 +22,6 @@ export default function AddBook() {
     const [author, setAuthor] = useState('')
     const [publishedDate, setPublishedDate] = useState('')
     const [description, setDescription] = useState('')
-    const [image, setImage] = useState<File | null>(null)
     const [previewUrl, setPreviewUrl] = useState<string | null>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const [apiError, setApiError] = useState('')
@@ -34,6 +34,7 @@ export default function AddBook() {
     })
     const [isUploading, setIsUploading] = useState(false)
     const navigate = useNavigate();
+    const [isSubmitting, setIsSubmitting] = useState(false)
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -44,24 +45,25 @@ export default function AddBook() {
             return
         }
 
+        setIsSubmitting(true)
         try {
             const newBook = await createBook({
                 title: title.trim(),
                 author: author.trim(),
                 publishedDate,
                 description: description.trim(),
-                imageUrl: previewUrl || undefined // Convert null to undefined
+                imageUrl: previewUrl || undefined
             })
             dispatch(addBook(newBook))
             setSuccessMessage('Book added successfully!')
-            clearForm()
-            
-            // Navigate back to books list after successful addition
             setTimeout(() => {
+                clearForm()
+                setIsSubmitting(false)
                 navigate('/');
             }, 1500);
         } catch (error) {
             console.error('Failed to add book:', error)
+            setIsSubmitting(false)
             setApiError(error instanceof Error ? error.message : 'Failed to add book. Please try again.')
         }
     }
@@ -105,7 +107,6 @@ export default function AddBook() {
         setAuthor('')
         setPublishedDate('')
         setDescription('')
-        setImage(null)
         setPreviewUrl(null)
         setErrors({
             title: '',
@@ -118,7 +119,6 @@ export default function AddBook() {
     const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (file) {
-            setImage(file)
             setIsUploading(true)
 
             // Show preview immediately
@@ -150,7 +150,6 @@ export default function AddBook() {
             } catch (error) {
                 console.error('Error uploading image:', error)
                 setApiError('Failed to upload image. Please try again.')
-                setImage(null)
                 setPreviewUrl(null)
             } finally {
                 setIsUploading(false)
@@ -193,7 +192,11 @@ export default function AddBook() {
                                 {isUploading ? (
                                     <div className="loader">Uploading...</div>
                                 ) : previewUrl ? (
-                                    <img src={previewUrl} alt="Book cover preview" className="preview-image" />
+                                    <ImageCache 
+                                        src={previewUrl} 
+                                        alt="Book cover preview" 
+                                        className="preview-image"
+                                    />
                                 ) : (
                                     <span className="upload-text">Click to add book cover</span>
                                 )}
@@ -289,8 +292,12 @@ export default function AddBook() {
                             {errors.description && <span className="error-message">{errors.description}</span>}
                         </div>
                         <div className="form-spacing">
-                            <button type="submit" className="submit-button">
-                                Add Book
+                            <button 
+                                type="submit" 
+                                className="submit-button"
+                                disabled={isSubmitting}
+                            >
+                                {isSubmitting ? 'Adding Book...' : 'Add Book'}
                             </button>
                         </div>
                     </form>
