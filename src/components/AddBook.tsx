@@ -8,7 +8,7 @@ import '../styles/AddBook.css';
 import { useNavigate } from 'react-router-dom';
 import ImageCache from './ImageCache';
 
-// Add interface for errors
+// Define interfaces for form validation and state management
 interface FormErrors {
     title: string;
     author: string;
@@ -25,8 +25,13 @@ interface FormState {
     errors?: FormErrors;
 }
 
+// Memoized component to prevent unnecessary re-renders
 export default memo(() => {
+    // Initialize Redux dispatch and React Router navigation
     const dispatch = useDispatch();
+    const navigate = useNavigate();
+
+    // State management for form data and UI states
     const [formData, setFormData] = useState<FormState>({
         title: '',
         author: '',
@@ -35,13 +40,17 @@ export default memo(() => {
         previewUrl: null,
         errors: undefined
     });
+    
+    // Refs and state for file upload handling
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const [isUploading, setIsUploading] = useState(false)
+    
+    // State for handling form submission and feedback
     const [apiError, setApiError] = useState('')
     const [successMessage, setSuccessMessage] = useState('')
-    const [isUploading, setIsUploading] = useState(false)
-    const navigate = useNavigate();
     const [isSubmitting, setIsSubmitting] = useState(false)
 
+    // Handle form submission and book creation
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setApiError('')
@@ -74,6 +83,7 @@ export default memo(() => {
         }
     }
 
+    // Validate form fields and return validation status
     const validateForm = useCallback(() => {
         const errors = {} as FormErrors;
         let isValid = true;
@@ -103,6 +113,7 @@ export default memo(() => {
         return { isValid, errors };
     }, [formData]);
 
+    // Reset form to initial state
     const clearForm = () => {
         setFormData({
             title: '',
@@ -114,6 +125,7 @@ export default memo(() => {
         setApiError('')
     }
 
+    // Handle image upload and preview
     const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
@@ -162,10 +174,10 @@ export default memo(() => {
         }
     };
 
+    // Trigger file input click when image area is clicked
     const handleImageClick = () => {
         fileInputRef.current?.click()
     }
-
 
     return (
         <div className="books-container">
@@ -213,6 +225,7 @@ export default memo(() => {
                                 accept="image/*"
                                 onChange={handleImageChange}
                                 className="hidden"
+                                data-testid="file-input"
                             />
                         </div>
                         <div className="form-grid">

@@ -1,57 +1,23 @@
-import { useEffect, useState, memo } from 'react';
+import { memo } from 'react';
+// Import LazyLoadImage component for optimized image loading
 import { LazyLoadImage } from 'react-lazy-load-image-component';
+// Import blur effect styles for image loading transition
 import 'react-lazy-load-image-component/src/effects/blur.css';
 
+// Define props interface for the ImageCache component
 interface ImageCacheProps {
-  src: string;
-  alt: string;
-  width?: number;
-  height?: number;
-  className?: string;
-  onError?: (e: React.SyntheticEvent<HTMLImageElement, Event>) => void;
+  src: string;          // Source URL of the image
+  alt: string;          // Alt text for accessibility
+  width?: number;       // Optional width of the image
+  height?: number;      // Optional height of the image
+  className?: string;   // Optional CSS class name
+  onError?: (e: React.SyntheticEvent<HTMLImageElement, Event>) => void;  // Optional error handler
 }
 
-// Create a global WeakMap outside the component
-const memoryCache = new WeakMap<object, string>();
-
+// Memoized component to prevent unnecessary re-renders
 const ImageCache = memo(({ src, alt, width, height, className, onError }: ImageCacheProps) => {
-  const [imageSrc, setImageSrc] = useState<string>(src);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    
-    const loadImage = async () => {
-      const srcKey = { url: src }; // Create an object key for WeakMap
-      if (memoryCache.has(srcKey)) {
-        setImageSrc(memoryCache.get(srcKey)!);
-        return;
-      }
-
-      try {
-        const response = await fetch(src, { signal: controller.signal });
-        const blob = await response.blob();
-        const objectUrl = URL.createObjectURL(blob);
-        
-        memoryCache.set(srcKey, objectUrl);
-        
-        if (blob.size < 5 * 1024 * 1024) {
-          localStorage.setItem(`img_${src}`, objectUrl);
-        }
-        
-        setImageSrc(objectUrl);
-      } catch (error: unknown) {
-        if (error instanceof Error && error.name === 'AbortError') return;
-        console.error('Error caching image:', error);
-      }
-    };
-
-    loadImage();
-
-    return () => {
-      controller.abort();
-    };
-  }, [src]);
-
+  // Container styles for centering and positioning the image
   const containerStyle: React.CSSProperties = {
     width: '100%',
     display: 'flex',
@@ -60,9 +26,10 @@ const ImageCache = memo(({ src, alt, width, height, className, onError }: ImageC
     position: 'relative'
   };
 
+  // Image styles for proper scaling and positioning
   const imageStyle: React.CSSProperties = {
-    objectFit: 'contain',
-    maxWidth: '100%',
+    objectFit: 'contain',    // Maintain aspect ratio while fitting container
+    maxWidth: '100%',        // Prevent image from overflowing container
     position: 'relative'
   };
 
@@ -70,13 +37,13 @@ const ImageCache = memo(({ src, alt, width, height, className, onError }: ImageC
     <div style={containerStyle}>
       <LazyLoadImage
         className={className}
-        src={imageSrc}
+        src={src}
         alt={alt}
         width={width}
         height={height}
-        effect="blur"
-        threshold={100}
-        placeholderSrc="data:image/jpeg;base64,/9j/4AAQSkZJRg=="
+        effect="blur"           // Add blur effect during loading
+        threshold={100}         // Start loading when image is 100px from viewport
+        placeholderSrc="data:image/jpeg;base64,/9j/4AAQSkZJRg=="  // Tiny base64 placeholder
         onError={onError}
         style={imageStyle}
       />

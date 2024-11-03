@@ -1,6 +1,14 @@
 import React from 'react';
 import '../../styles/ConfirmDialog.css';
 
+/**
+ * Props interface for the ConfirmDialog component
+ * @interface ConfirmDialogProps
+ * @property {boolean} isOpen - Controls the visibility of the dialog
+ * @property {string} message - The message to display in the dialog
+ * @property {() => void} onConfirm - Callback function triggered when user confirms
+ * @property {() => void} onCancel - Callback function triggered when user cancels
+ */
 interface ConfirmDialogProps {
     isOpen: boolean;
     message: string;
@@ -8,6 +16,13 @@ interface ConfirmDialogProps {
     onCancel: () => void;
 }
 
+/**
+ * A reusable confirmation dialog component that displays a message and two action buttons.
+ * Used primarily for confirming destructive actions like deletions.
+ * 
+ * @param {ConfirmDialogProps} props - The component props
+ * @returns {JSX.Element | null} - Returns the dialog UI when open, null when closed
+ */
 const ConfirmDialog: React.FC<ConfirmDialogProps> = ({ isOpen, message, onConfirm, onCancel }) => {
     if (!isOpen) return null;
 

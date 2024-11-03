@@ -2,6 +2,9 @@ import { Book, SortField, SortOrder } from '../features/bookReducer';
 
 const GRAPHQL_URL = 'http://localhost:8080/graphql';
 
+/**
+ * Fetches all books from the database with basic information
+ */
 export const fetchBooks = async (): Promise<Book[]> => {
     try {
         const response = await fetch(GRAPHQL_URL, {
@@ -30,6 +33,9 @@ export const fetchBooks = async (): Promise<Book[]> => {
     }
 };
 
+/**
+ * Retrieves a specific book by its ID, including full details
+ */
 export const findBookById = async (id: number): Promise<Book | null> => {
     try {
         const response = await fetch(GRAPHQL_URL, {
@@ -58,6 +64,9 @@ export const findBookById = async (id: number): Promise<Book | null> => {
     }
 };
 
+/**
+ * Finds all books published between two dates
+ */
 export const findBooksByDateRange = async (startDate: string, endDate: string): Promise<Book[]> => {
     try {
         const response = await fetch(GRAPHQL_URL, {
@@ -84,6 +93,9 @@ export const findBooksByDateRange = async (startDate: string, endDate: string): 
     }
 };
 
+/**
+ * Searches for books by title (partial match)
+ */
 export const searchBooks = async (title: string): Promise<Book[]> => {
     try {
         const response = await fetch(GRAPHQL_URL, {
@@ -110,6 +122,9 @@ export const searchBooks = async (title: string): Promise<Book[]> => {
     }
 };
 
+/**
+ * Retrieves all books sorted by title in ascending or descending order
+ */
 export const getAllBooksSortedByTitle = async (ascending: boolean): Promise<Book[]> => {
     try {
         const response = await fetch(GRAPHQL_URL, {
@@ -136,6 +151,9 @@ export const getAllBooksSortedByTitle = async (ascending: boolean): Promise<Book
     }
 };
 
+/**
+ * Retrieves all books sorted by publication date in ascending or descending order
+ */
 export const getAllBooksSortedByDate = async (ascending: boolean): Promise<Book[]> => {
     try {
         const response = await fetch(GRAPHQL_URL, {
@@ -164,6 +182,9 @@ export const getAllBooksSortedByDate = async (ascending: boolean): Promise<Book[
     }
 };
 
+/**
+ * Fetches just the titles of all books in the database
+ */
 export const getAllBookTitles = async (): Promise<string[]> => {
     try {
         const response = await fetch(GRAPHQL_URL, {
@@ -182,6 +203,9 @@ export const getAllBookTitles = async (): Promise<string[]> => {
     }
 };
 
+/**
+ * Creates a new book in the database
+ */
 export const createBook = async (book: Omit<Book, 'id'>): Promise<Book> => {
     try {
         const response = await fetch(GRAPHQL_URL, {
@@ -226,6 +250,9 @@ export const createBook = async (book: Omit<Book, 'id'>): Promise<Book> => {
     }
 };
 
+/**
+ * Deletes a book from the database by its ID
+ */
 export const deleteBook = async (id: number): Promise<boolean> => {
     try {
         const response = await fetch(GRAPHQL_URL, {
@@ -250,6 +277,9 @@ export const deleteBook = async (id: number): Promise<boolean> => {
     }
 };
 
+/**
+ * Retrieves all books sorted by a specified field and order
+ */
 export const findAllBooksSorted = async (sortField: SortField, sortOrder: SortOrder): Promise<Book[]> => {
     try {
         const response = await fetch(GRAPHQL_URL, {
@@ -282,6 +312,9 @@ export const findAllBooksSorted = async (sortField: SortField, sortOrder: SortOr
     }
 };
 
+/**
+ * Searches for books by author name (partial match)
+ */
 export const findBooksByAuthorContaining = async (author: string): Promise<Book[]> => {
     try {
         const response = await fetch(GRAPHQL_URL, {
@@ -312,4 +345,78 @@ export const findBooksByAuthorContaining = async (author: string): Promise<Book[
         console.error('Error fetching books by author:', error);
         return [];
     }
+};
+
+interface PaginatedResponse {
+    content: Book[];
+    totalElements: number;
+    totalPages: number;
+    pageNumber: number;
+    pageSize: number;
+}
+
+/**
+ * Fetches books with pagination, sorting, and filtering
+ */
+export const findBooksWithPagination = async (
+    page: number,
+    size: number,
+    sortField?: SortField,
+    sortOrder?: SortOrder,
+    titleFilter?: string,
+    authorFilter?: string
+): Promise<PaginatedResponse> => {
+    const query = `
+        query FindBooksWithPagination(
+            $page: Int!, 
+            $size: Int!, 
+            $sortField: SortField, 
+            $sortOrder: SortOrder,
+            $titleFilter: String,
+            $authorFilter: String
+        ) {
+            findAllBooksWithPagination(
+                page: $page,
+                size: $size,
+                sortField: $sortField,
+                sortOrder: $sortOrder,
+                titleFilter: $titleFilter,
+                authorFilter: $authorFilter
+            ) {
+                content {
+                    id
+                    title
+                    author
+                    publishedDate
+                    description
+                    imageUrl
+                }
+                totalElements
+                totalPages
+                pageNumber
+                pageSize
+            }
+        }
+    `;
+
+    const response = await fetch(GRAPHQL_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            query,
+            variables: {
+                page,
+                size,
+                sortField,
+                sortOrder,
+                titleFilter,
+                authorFilter
+            }
+        })
+    });
+
+    const data = await response.json();
+    return data.data.findAllBooksWithPagination;
 };

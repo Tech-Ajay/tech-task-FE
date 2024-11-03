@@ -5,8 +5,9 @@ import { Book } from '../features/bookReducer';
 import ImageCache from './ImageCache';
 import '../styles/BookDetail.css';
 import ConfirmDialog from './subComponents/ConfirmDialog';
+import { deleteBook as deleteBookApi } from '../api/api';
 
-// Create a custom hook for data fetching
+// Custom hook to fetch book data and handle loading/error states
 const useBookData = (id: string | undefined) => {
     const [book, setBook] = React.useState<Book | null>(null);
     const [error, setError] = React.useState<Error | null>(null);
@@ -33,13 +34,28 @@ const useBookData = (id: string | undefined) => {
     return { book, error };
 };
 
+// Helper function to handle book deletion via API
+const handleDelete = async (id: number) => {
+    try {
+        const success = await deleteBookApi(id);
+        return success;
+    } catch (error) {
+        console.error('Error deleting book:', error);
+    }
+};
+
+// Memoized component to display detailed information about a book
 const BookDetail = memo(() => {
+    // Get book ID from URL parameters and navigation function
     const { id } = useParams();
     const navigate = useNavigate();
+
+    // State management
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const { book, error: bookError } = useBookData(id);
     const [relatedBooks, setRelatedBooks] = useState<Book[]>([]);
 
+    // Fetch related books by the same author when book data changes
     React.useEffect(() => {
         if (book?.author) {
             findBooksByAuthorContaining(book.author)
@@ -48,16 +64,18 @@ const BookDetail = memo(() => {
         }
     }, [book?.author]);
 
-    // Memoize expensive computations
+    // Filter out the current book from related books list
     const filteredRelatedBooks = useMemo(() => 
         relatedBooks.filter((b: Book) => b.id !== book?.id),
         [relatedBooks, book?.id]
     );
 
+    // Navigate to selected related book's detail page
     const handleRelatedBookClick = async (relatedBookId: number) => {
         navigate(`/book/${relatedBookId}`);
     };
 
+    // Display error state if book fetch failed
     if (bookError) {
         return (
             <div className="pdp-error-container">
@@ -77,8 +95,9 @@ const BookDetail = memo(() => {
 
     return (
         <div className="pdp-container">
+            {/* Header section with title and back button */}
             <div className="books-wrapper">
-                <div className="header-container">
+                <div className="header-container" style={{ marginLeft: '20px',marginRight: '20px' }}>
                     <h1 className="books-title">Book Detail</h1>
                     <button 
                         className="add-book-button"
@@ -88,7 +107,9 @@ const BookDetail = memo(() => {
                     </button>
                 </div>
             </div>
+
             <div className="pdp-wrapper">
+                {/* Main book details card */}
                 <div className="pdp-card">
                     <div className="pdp-content">
                         <div className="pdp-image-container">
@@ -124,6 +145,7 @@ const BookDetail = memo(() => {
                     </div>
                 </div>
 
+                {/* Related books section - shows other books by the same author */}
                 {filteredRelatedBooks.length > 0 && (
                     <div className="pdp-related">
                         <h2 className="pdp-related-title">More by {book?.author}</h2>
@@ -168,10 +190,13 @@ const BookDetail = memo(() => {
                     </div>
                 )}
             </div>
+
+            {/* Confirmation dialog for book deletion */}
             <ConfirmDialog
                 isOpen={showDeleteDialog}
                 message="Are you sure you want to delete this book?"
-                onConfirm={() => {
+                onConfirm={async () => {
+                    await handleDelete(book?.id || 0);
                     setShowDeleteDialog(false);
                     navigate('/');
                 }}

@@ -15,7 +15,7 @@
 .pdp-container {
     min-height: 100vh;
     background: linear-gradient(to bottom right, #EBF4FF, #E0E7FF);
-    padding: 3rem 0rem;
+    padding: 2rem 0rem;
 }
 
 .pdp-wrapper {
@@ -139,6 +139,7 @@
 
 .pdp-related {
     margin-top: 3rem;
+    max-width: 100%;
 }
 
 .pdp-related-title {

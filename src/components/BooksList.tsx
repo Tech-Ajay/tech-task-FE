@@ -1,58 +1,104 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
-import { setBooks, deleteBook } from '../features/bookReducer';
-import { findAllBooksSorted, deleteBook as deleteBookApi } from '../api/api';
-import { SortField, SortOrder } from '../features/bookReducer';
+import { setBooks, deleteBook, Book, SortField, SortOrder } from '../features/bookReducer';
+import { deleteBook as deleteBookApi, findBooksWithPagination } from '../api/api';
 import '../styles/Books.css';
 import { useNavigate } from 'react-router-dom';
 import ImageCache from './ImageCache';
 import ConfirmDialog from './subComponents/ConfirmDialog';
 
+// Update filters state interface
+interface FiltersState {
+    searchTerm: string;
+    sortBy: SortField;
+    sortOrder: SortOrder;
+    titleFilter: string;
+    authorFilter: string;
+}
+
+// Initial filters state
+const initialFilters: FiltersState = {
+    searchTerm: '',
+    sortBy: SortField.TITLE,
+    sortOrder: SortOrder.ASC,
+    titleFilter: '',
+    authorFilter: ''
+};
+
 const BooksList = () => {
+    // Redux state management with memoized selector to prevent unnecessary rerenders
     const books = useSelector((state: RootState) => state.books.books, 
         (prev, next) => JSON.stringify(prev) === JSON.stringify(next)
     );
     const dispatch = useDispatch();
-    const [filters, setFilters] = useState({
-        searchTerm: '',
-        sortBy: SortField.TITLE,
-        sortOrder: SortOrder.ASC,
-        filterBy: 'all'
-    });
-    const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+    // State management for filters, search, and UI
+    const [filters, setFilters] = useState<FiltersState>(initialFilters);
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const navigate = useNavigate();
     const [bookToDelete, setBookToDelete] = useState<number | null>(null);
 
-    useEffect(() => {
-        const loadInitialBooks = async () => {
-            try {
-                const sortedBooks = await findAllBooksSorted(filters.sortBy, filters.sortOrder);
-                dispatch(setBooks(sortedBooks));
-                setIsInitialLoad(false);
-            } catch (error) {
-                console.error('Error loading initial books:', error);
-            }
-        };
-        loadInitialBooks();
-    }, [dispatch, filters.sortBy, filters.sortOrder]);
+    // Add pagination state
+    const [pagination, setPagination] = useState({
+        currentPage: 0,
+        pageSize: 10,
+        totalPages: 0,
+        totalElements: 0
+    });
 
+    // Load books with pagination
     useEffect(() => {
-        const loadSortedBooks = async () => {
+        const loadBooks = async () => {
             try {
-                const sortedBooks = await findAllBooksSorted(filters.sortBy, filters.sortOrder);
-                dispatch(setBooks(sortedBooks));
+                const result = await findBooksWithPagination(
+                    pagination.currentPage,
+                    pagination.pageSize,
+                    filters.sortBy,
+                    filters.sortOrder,
+                    filters.titleFilter,
+                    filters.authorFilter
+                );
+                
+                dispatch(setBooks(result.content));
+                setPagination(prev => ({
+                    ...prev,
+                    currentPage: result.pageNumber,
+                    pageSize: result.pageSize,
+                    totalPages: result.totalPages,
+                    totalElements: result.totalElements
+                }));
             } catch (error) {
                 console.error('Error loading books:', error);
             }
         };
-        if (!isInitialLoad) {
-            loadSortedBooks();
-        }
-    }, [filters.sortBy, filters.sortOrder, dispatch, isInitialLoad]);
 
+        loadBooks();
+    }, [
+        pagination.currentPage,
+        pagination.pageSize,
+        filters.sortBy,
+        filters.sortOrder,
+        filters.titleFilter,
+        filters.authorFilter,
+        dispatch
+    ]);
+
+    // Handle search with debounce
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setFilters(prev => ({
+                ...prev,
+                titleFilter: prev.searchTerm,
+                authorFilter: prev.searchTerm
+            }));
+        }, 300);
+
+        return () => clearTimeout(timer);
+    }, [filters.searchTerm]);
+
+    // Handle book deletion
     const handleDelete = async (id: number) => {
         try {
             const success = await deleteBookApi(id);
@@ -65,19 +111,10 @@ const BooksList = () => {
         setBookToDelete(null);
     };
 
-    const filteredAndSortedBooks = useMemo(() => 
-        books.filter((book) => {
-            if (filters.filterBy === 'all') return true;
-            return book.author.toLowerCase().includes(filters.filterBy.toLowerCase());
-        })
-        .filter((book) =>
-            book.title.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-            book.author.toLowerCase().includes(filters.searchTerm.toLowerCase())
-        ),
-        [books, filters.filterBy, filters.searchTerm]
-    );
+    // Instead, use the books directly from Redux state
+    const displayedBooks = books;
 
-    // Helper function to get unique authors
+    // Extract unique authors for filter dropdown
     const getUniqueAuthors = () => {
         return Array.from(
             books.reduce((acc, book) => {
@@ -87,6 +124,7 @@ const BooksList = () => {
         );
     };
 
+    // Toggle sort order between ascending and descending
     const handleSortOrderChange = useCallback(() => {
         setFilters(prev => ({
             ...prev,
@@ -94,7 +132,7 @@ const BooksList = () => {
         }));
     }, []);
 
-    // Helper function to get suggestions based on input
+    // Generate search suggestions based on input
     const getSuggestions = (input: string) => {
         const inputValue = input.trim().toLowerCase();
         if (inputValue.length === 0) return [];
@@ -107,7 +145,7 @@ const BooksList = () => {
         ])).slice(0, 5); // Limit to 5 suggestions
     };
 
-    // Handle search input change
+    // Handle search input changes
     const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
         setFilters(prev => ({
@@ -118,7 +156,7 @@ const BooksList = () => {
         setShowSuggestions(true);
     };
 
-    // Handle suggestion click
+    // Handle selection of a search suggestion
     const handleSuggestionClick = (suggestion: string) => {
         setFilters(prev => ({
             ...prev,
@@ -128,7 +166,7 @@ const BooksList = () => {
         setShowSuggestions(false);
     };
 
-    // Handle click outside suggestions
+    // Close suggestions dropdown when clicking outside
     useEffect(() => {
         const handleClickOutside = () => {
             setShowSuggestions(false);
@@ -140,6 +178,7 @@ const BooksList = () => {
         };
     }, []);
 
+    // Render empty state if no books exist
     if (!books || books.length === 0) {
         return (
             <div className="books-container">
@@ -230,14 +269,14 @@ const BooksList = () => {
                             </button>
                         </div>
                         <select
-                            value={filters.filterBy}
+                            value={filters.authorFilter}
                             onChange={(e) => setFilters(prev => ({
                                 ...prev,
-                                filterBy: e.target.value
+                                authorFilter: e.target.value
                             }))}
                             className="select-control"
                         >
-                            <option value="all">All Authors</option>
+                            <option value="">All Authors</option>
                             {getUniqueAuthors().map(author => (
                                 <option key={author} value={author}>{author}</option>
                             ))}
@@ -245,18 +284,19 @@ const BooksList = () => {
                     </div>
                 </div>
                 <div className="books-grid">
-                    {filteredAndSortedBooks.length === 0 ? (
+                    {displayedBooks.length === 0 ? (
                         <div className="no-results">
                             <p>No books found for "{filters.searchTerm}"</p>
                         </div>
                     ) : (
-                        filteredAndSortedBooks.map((book) => (
+                        displayedBooks.map((book) => (
                             <div key={book.id} className="book-card" onClick={() => navigate(`/book/${book.id}`)}>
                                 {book.imageUrl ? (
                                     <ImageCache 
                                         src={book.imageUrl} 
                                         alt={book.title} 
                                         className="book-image"
+                                        height={200}
                                         onError={(e) => {
                                             (e.target as HTMLImageElement).style.display = 'none';
                                         }}
@@ -286,6 +326,50 @@ const BooksList = () => {
                             </div>
                         ))
                     )}
+                </div>
+
+                {/* Add pagination controls */}
+                <div className="pagination-controls">
+                    <button
+                        onClick={() => setPagination(prev => ({
+                            ...prev,
+                            currentPage: prev.currentPage - 1
+                        }))}
+                        disabled={pagination.currentPage === 0}
+                        className="pagination-button"
+                    >
+                        Previous
+                    </button>
+                    
+                    <span className="pagination-info">
+                        Page {pagination.currentPage + 1} of {pagination.totalPages}
+                        ({pagination.totalElements} total items)
+                    </span>
+
+                    <button
+                        onClick={() => setPagination(prev => ({
+                            ...prev,
+                            currentPage: prev.currentPage + 1
+                        }))}
+                        disabled={pagination.currentPage >= pagination.totalPages - 1}
+                        className="pagination-button"
+                    >
+                        Next
+                    </button>
+
+                    <select
+                        value={pagination.pageSize}
+                        onChange={(e) => setPagination(prev => ({
+                            ...prev,
+                            pageSize: Number(e.target.value),
+                            currentPage: 0 // Reset to first page when changing page size
+                        }))}
+                        className="select-control"
+                    >
+                        <option value="10">10 per page</option>
+                        <option value="20">20 per page</option>
+                        <option value="50">50 per page</option>
+                    </select>
                 </div>
             </div>
             <ConfirmDialog
