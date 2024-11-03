@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
 import { setBooks, deleteBook } from '../features/bookReducer';
@@ -10,12 +10,16 @@ import ImageCache from './ImageCache';
 import ConfirmDialog from './subComponents/ConfirmDialog';
 
 const BooksList = () => {
-    const books = useSelector((state: RootState) => state.books.books);
+    const books = useSelector((state: RootState) => state.books.books, 
+        (prev, next) => JSON.stringify(prev) === JSON.stringify(next)
+    );
     const dispatch = useDispatch();
-    const [searchTerm, setSearchTerm] = useState('');
-    const [sortBy, setSortBy] = useState(SortField.TITLE);
-    const [sortOrder, setSortOrder] = useState<SortOrder>(SortOrder.ASC);
-    const [filterBy, setFilterBy] = useState('all');
+    const [filters, setFilters] = useState({
+        searchTerm: '',
+        sortBy: SortField.TITLE,
+        sortOrder: SortOrder.ASC,
+        filterBy: 'all'
+    });
     const [isInitialLoad, setIsInitialLoad] = useState(true);
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
@@ -25,7 +29,7 @@ const BooksList = () => {
     useEffect(() => {
         const loadInitialBooks = async () => {
             try {
-                const sortedBooks = await findAllBooksSorted(sortBy, sortOrder);
+                const sortedBooks = await findAllBooksSorted(filters.sortBy, filters.sortOrder);
                 dispatch(setBooks(sortedBooks));
                 setIsInitialLoad(false);
             } catch (error) {
@@ -33,12 +37,12 @@ const BooksList = () => {
             }
         };
         loadInitialBooks();
-    }, [dispatch, sortBy, sortOrder]);
+    }, [dispatch, filters.sortBy, filters.sortOrder]);
 
     useEffect(() => {
         const loadSortedBooks = async () => {
             try {
-                const sortedBooks = await findAllBooksSorted(sortBy, sortOrder);
+                const sortedBooks = await findAllBooksSorted(filters.sortBy, filters.sortOrder);
                 dispatch(setBooks(sortedBooks));
             } catch (error) {
                 console.error('Error loading books:', error);
@@ -47,7 +51,7 @@ const BooksList = () => {
         if (!isInitialLoad) {
             loadSortedBooks();
         }
-    }, [sortBy, sortOrder, dispatch, isInitialLoad]);
+    }, [filters.sortBy, filters.sortOrder, dispatch, isInitialLoad]);
 
     const handleDelete = async (id: number) => {
         try {
@@ -61,15 +65,17 @@ const BooksList = () => {
         setBookToDelete(null);
     };
 
-    const filteredAndSortedBooks = books
-        .filter((book) => {
-            if (filterBy === 'all') return true;
-            return book.author.toLowerCase().includes(filterBy.toLowerCase());
+    const filteredAndSortedBooks = useMemo(() => 
+        books.filter((book) => {
+            if (filters.filterBy === 'all') return true;
+            return book.author.toLowerCase().includes(filters.filterBy.toLowerCase());
         })
         .filter((book) =>
-            book.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            book.author.toLowerCase().includes(searchTerm.toLowerCase())
-        );
+            book.title.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
+            book.author.toLowerCase().includes(filters.searchTerm.toLowerCase())
+        ),
+        [books, filters.filterBy, filters.searchTerm]
+    );
 
     // Helper function to get unique authors
     const getUniqueAuthors = () => {
@@ -81,10 +87,12 @@ const BooksList = () => {
         );
     };
 
-    const handleSortOrderChange = () => {
-        const newOrder = sortOrder === SortOrder.ASC ? SortOrder.DESC : SortOrder.ASC;
-        setSortOrder(newOrder);
-    };
+    const handleSortOrderChange = useCallback(() => {
+        setFilters(prev => ({
+            ...prev,
+            sortOrder: prev.sortOrder === SortOrder.ASC ? SortOrder.DESC : SortOrder.ASC
+        }));
+    }, []);
 
     // Helper function to get suggestions based on input
     const getSuggestions = (input: string) => {
@@ -102,14 +110,20 @@ const BooksList = () => {
     // Handle search input change
     const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
-        setSearchTerm(value);
+        setFilters(prev => ({
+            ...prev,
+            searchTerm: value
+        }));
         setSuggestions(getSuggestions(value));
         setShowSuggestions(true);
     };
 
     // Handle suggestion click
     const handleSuggestionClick = (suggestion: string) => {
-        setSearchTerm(suggestion);
+        setFilters(prev => ({
+            ...prev,
+            searchTerm: suggestion
+        }));
         setSuggestions([]);
         setShowSuggestions(false);
     };
@@ -170,7 +184,7 @@ const BooksList = () => {
                             <input
                                 type="text"
                                 placeholder="Search books..."
-                                value={searchTerm}
+                                value={filters.searchTerm}
                                 onChange={handleSearchChange}
                                 onClick={(e) => {
                                     e.stopPropagation();
@@ -197,8 +211,11 @@ const BooksList = () => {
                         </div>
                         <div className="sort-controls" style={{"marginBottom": 0}}>
                             <select
-                                value={sortBy}
-                                onChange={(e) => setSortBy(e.target.value as SortField)}
+                                value={filters.sortBy}
+                                onChange={(e) => setFilters(prev => ({
+                                    ...prev,
+                                    sortBy: e.target.value as SortField
+                                }))}
                                 className="select-control"
                             >
                                 <option value={SortField.TITLE}>Sort by Title</option>
@@ -209,12 +226,15 @@ const BooksList = () => {
                                 onClick={handleSortOrderChange}
                                 className="sort-order-button"
                             >
-                                {sortOrder === SortOrder.ASC ? '↑' : '↓'}
+                                {filters.sortOrder === SortOrder.ASC ? '↑' : '↓'}
                             </button>
                         </div>
                         <select
-                            value={filterBy}
-                            onChange={(e) => setFilterBy(e.target.value)}
+                            value={filters.filterBy}
+                            onChange={(e) => setFilters(prev => ({
+                                ...prev,
+                                filterBy: e.target.value
+                            }))}
                             className="select-control"
                         >
                             <option value="all">All Authors</option>
@@ -227,7 +247,7 @@ const BooksList = () => {
                 <div className="books-grid">
                     {filteredAndSortedBooks.length === 0 ? (
                         <div className="no-results">
-                            <p>No books found for "{searchTerm}"</p>
+                            <p>No books found for "{filters.searchTerm}"</p>
                         </div>
                     ) : (
                         filteredAndSortedBooks.map((book) => (

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, memo, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { findBookById, findBooksByAuthorContaining } from '../api/api';
 import { Book } from '../features/bookReducer';
@@ -6,59 +6,64 @@ import ImageCache from './ImageCache';
 import '../styles/BookDetail.css';
 import ConfirmDialog from './subComponents/ConfirmDialog';
 
-const BookDetail = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
-    const [book, setBook] = useState<Book | null>(null);
-    const [relatedBooks, setRelatedBooks] = useState<Book[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+// Create a custom hook for data fetching
+const useBookData = (id: string | undefined) => {
+    const [book, setBook] = React.useState<Book | null>(null);
+    const [error, setError] = React.useState<Error | null>(null);
 
-    useEffect(() => {
-        const loadBook = async () => {
-            setLoading(true);
-            setError(null);
-            if (id) {
-                try {
-                    const bookData = await findBookById(parseInt(id));
-                    if (!bookData) {
-                        setError('Book not found');
-                        return;
-                    }
-                    setBook(bookData);
+    React.useEffect(() => {
+        if (!id) return;
 
-                    const related = await findBooksByAuthorContaining(bookData.author);
-                    setRelatedBooks(related.filter(b => b.id !== bookData.id));
-                } catch (error) {
-                    setError('An error occurred while loading the book');
-                    console.error('Error loading book:', error);
-                } finally {
-                    setLoading(false);
+        const fetchBook = async () => {
+            try {
+                const data = await findBookById(parseInt(id));
+                if (data) {
+                    setBook(data);
+                } else {
+                    setError(new Error('Book not found'));
                 }
+            } catch (err) {
+                setError(err instanceof Error ? err : new Error('Failed to fetch book'));
             }
         };
-        loadBook();
+
+        fetchBook();
     }, [id]);
+
+    return { book, error };
+};
+
+const BookDetail = memo(() => {
+    const { id } = useParams();
+    const navigate = useNavigate();
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const { book, error: bookError } = useBookData(id);
+    const [relatedBooks, setRelatedBooks] = useState<Book[]>([]);
+
+    React.useEffect(() => {
+        if (book?.author) {
+            findBooksByAuthorContaining(book.author)
+                .then(setRelatedBooks)
+                .catch(console.error);
+        }
+    }, [book?.author]);
+
+    // Memoize expensive computations
+    const filteredRelatedBooks = useMemo(() => 
+        relatedBooks.filter((b: Book) => b.id !== book?.id),
+        [relatedBooks, book?.id]
+    );
 
     const handleRelatedBookClick = async (relatedBookId: number) => {
         navigate(`/book/${relatedBookId}`);
     };
 
-    if (loading) {
-        return (
-            <div className="pdp-loading-container">
-                <div className="pdp-loading-text">Loading...</div>
-            </div>
-        );
-    }
-
-    if (error) {
+    if (bookError) {
         return (
             <div className="pdp-error-container">
                 <div className="pdp-error-content">
                     <h2 className="pdp-error-title">Oops!</h2>
-                    <p className="pdp-error-message">{error}</p>
+                    <p className="pdp-error-message">{bookError.message}</p>
                     <button 
                         className="pdp-back-button"
                         onClick={() => navigate('/')}
@@ -119,14 +124,14 @@ const BookDetail = () => {
                     </div>
                 </div>
 
-                {relatedBooks.length > 0 && (
+                {filteredRelatedBooks.length > 0 && (
                     <div className="pdp-related">
                         <h2 className="pdp-related-title">More by {book?.author}</h2>
                         <div className="pdp-related-scroll">
                             <div className="pdp-related-track">
                                 {[...Array(4)].map((_, index) => (
                                     <React.Fragment key={`group-${index}`}>
-                                        {relatedBooks.map((relatedBook) => (
+                                        {filteredRelatedBooks.map((relatedBook) => (
                                             <div 
                                                 key={`${index}-${relatedBook.id}`} 
                                                 className="pdp-related-card"
@@ -174,6 +179,6 @@ const BookDetail = () => {
             />
         </div>
     );
-};
+});
 
 export default BookDetail;

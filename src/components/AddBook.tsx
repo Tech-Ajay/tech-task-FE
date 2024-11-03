@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useCallback, memo } from 'react'
 import { useDispatch } from 'react-redux';
 import { addBook } from '../features/bookReducer';
 import { createBook } from '../api/api';
@@ -16,22 +16,28 @@ interface FormErrors {
     description?: string; // Make description optional
 }
 
-export default function AddBook() {
+interface FormState {
+    title: string;
+    author: string;
+    publishedDate: string;
+    description: string;
+    previewUrl: string | null;
+    errors?: FormErrors;
+}
+
+export default memo(() => {
     const dispatch = useDispatch();
-    const [title, setTitle] = useState('')
-    const [author, setAuthor] = useState('')
-    const [publishedDate, setPublishedDate] = useState('')
-    const [description, setDescription] = useState('')
-    const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-    const fileInputRef = useRef<HTMLInputElement>(null)
-    const [apiError, setApiError] = useState('')
-    const [successMessage, setSuccessMessage] = useState('')
-    const [errors, setErrors] = useState<FormErrors>({
+    const [formData, setFormData] = useState<FormState>({
         title: '',
         author: '',
         publishedDate: '',
-        description: ''
-    })
+        description: '',
+        previewUrl: null,
+        errors: undefined
+    });
+    const fileInputRef = useRef<HTMLInputElement>(null)
+    const [apiError, setApiError] = useState('')
+    const [successMessage, setSuccessMessage] = useState('')
     const [isUploading, setIsUploading] = useState(false)
     const navigate = useNavigate();
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -48,11 +54,11 @@ export default function AddBook() {
         setIsSubmitting(true)
         try {
             const newBook = await createBook({
-                title: title.trim(),
-                author: author.trim(),
-                publishedDate,
-                description: description.trim(),
-                imageUrl: previewUrl || undefined
+                title: formData.title.trim(),
+                author: formData.author.trim(),
+                publishedDate: formData.publishedDate,
+                description: formData.description.trim(),
+                imageUrl: formData.previewUrl || undefined
             })
             dispatch(addBook(newBook))
             setSuccessMessage('Book added successfully!')
@@ -68,98 +74,98 @@ export default function AddBook() {
         }
     }
 
-    const validateForm = () => {
-        let isValid = true
-        const newErrors = {
-            title: '',
-            author: '',
-            publishedDate: ''
+    const validateForm = useCallback(() => {
+        const errors = {} as FormErrors;
+        let isValid = true;
+
+        if (!formData.title.trim()) {
+            errors.title = 'Title is required';
+            isValid = false;
         }
 
-        if (!title.trim()) {
-            newErrors.title = 'Title is required'
-            isValid = false
+        if (!formData.author.trim()) {
+            errors.author = 'Author name is required';
+            isValid = false;
         }
 
-        if (!author.trim()) {
-            newErrors.author = 'Author name is required'
-            isValid = false
-        }
-
-        if (!publishedDate) {
-            newErrors.publishedDate = 'Published date is required'
-            isValid = false
+        if (!formData.publishedDate) {
+            errors.publishedDate = 'Published date is required';
+            isValid = false;
         } else {
-            const selectedDate = new Date(publishedDate)
+            const selectedDate = new Date(formData.publishedDate)
             const currentDate = new Date()
             if (selectedDate > currentDate) {
-                newErrors.publishedDate = 'Published date cannot be in the future'
+                errors.publishedDate = 'Published date cannot be in the future'
                 isValid = false
             }
         }
 
-        setErrors(newErrors)
-        return isValid
-    }
+        return { isValid, errors };
+    }, [formData]);
 
     const clearForm = () => {
-        setTitle('')
-        setAuthor('')
-        setPublishedDate('')
-        setDescription('')
-        setPreviewUrl(null)
-        setErrors({
+        setFormData({
             title: '',
             author: '',
-            publishedDate: ''
+            publishedDate: '',
+            description: '',
+            previewUrl: null
         })
         setApiError('')
     }
 
     const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0]
+        const file = e.target.files?.[0];
         if (file) {
-            setIsUploading(true)
+            setIsUploading(true);
 
-            // Show preview immediately
-            const reader = new FileReader()
+            const reader = new FileReader();
             reader.onloadend = () => {
-                setPreviewUrl(reader.result as string)
-            }
-            reader.readAsDataURL(file)
+                setFormData(prev => ({
+                    ...prev,
+                    previewUrl: reader.result as string
+                }));
+            };
+            reader.readAsDataURL(file);
 
-            // Upload image
-            const formData = new FormData()
-            formData.append('file', file)
+            const formDataObj = new FormData();
+            formDataObj.append('file', file);
 
             try {
                 const response = await fetch('https://supertails-backend.el.r.appspot.com/upload', {
                     method: 'POST',
-                    body: formData,
+                    body: formDataObj,
                     headers: {
                         'Accept': 'application/json',
                     }
-                })
+                });
                 
                 if (response.ok) {
-                    const responseData = await response.json()
-                    setPreviewUrl(responseData.url)
+                    const responseData = await response.json();
+                    setFormData(prev => ({
+                        ...prev,
+                        previewUrl: responseData.url
+                    }));
                 } else {
-                    throw new Error('Failed to upload image')
+                    throw new Error('Failed to upload image');
                 }
             } catch (error) {
-                console.error('Error uploading image:', error)
-                setApiError('Failed to upload image. Please try again.')
-                setPreviewUrl(null)
+                console.error('Error uploading image:', error);
+                setApiError('Failed to upload image. Please try again.');
+                setFormData(prev => ({
+                    ...prev,
+                    previewUrl: null
+                }));
             } finally {
-                setIsUploading(false)
+                setIsUploading(false);
             }
         }
-    }
+    };
 
     const handleImageClick = () => {
         fileInputRef.current?.click()
     }
+
 
     return (
         <div className="books-container">
@@ -191,9 +197,9 @@ export default function AddBook() {
                             <div onClick={handleImageClick} className="image-upload-area">
                                 {isUploading ? (
                                     <div className="loader">Uploading...</div>
-                                ) : previewUrl ? (
+                                ) : formData.previewUrl ? (
                                     <ImageCache 
-                                        src={previewUrl} 
+                                        src={formData.previewUrl} 
                                         alt="Book cover preview" 
                                         className="preview-image"
                                     />
@@ -216,20 +222,17 @@ export default function AddBook() {
                                 </label>
                                 <input
                                     id="title"
-                                    value={title}
+                                    value={formData.title}
                                     onChange={(e) => {
-                                        setTitle(e.target.value)
-                                        if (errors.title) {
-                                            setErrors({ ...errors, title: '' })
-                                        }
+                                        setFormData({ ...formData, title: e.target.value })
                                     }}
                                     style={{
                                         width: '95%'
                                     }}
-                                    className={`form-input ${errors.title ? 'error' : ''}`}
+                                    className={`form-input ${formData.errors?.title ? 'error' : ''}`}
                                     required
                                 />
-                                {errors.title && <span className="error-message">{errors.title}</span>}
+                                {formData.errors?.title && <span className="error-message">{formData.errors.title}</span>}
                             </div>
                             <div>
                                 <label htmlFor="author" className="form-label">
@@ -237,20 +240,17 @@ export default function AddBook() {
                                 </label>
                                 <input
                                     id="author"
-                                    value={author}
+                                    value={formData.author}
                                     onChange={(e) => {
-                                        setAuthor(e.target.value)
-                                        if (errors.author) {
-                                            setErrors({ ...errors, author: '' })
-                                        }
+                                        setFormData({ ...formData, author: e.target.value })
                                     }}
                                     style={{
                                         width: '95%'
                                     }}
-                                    className={`form-input ${errors.author ? 'error' : ''}`}
+                                    className={`form-input ${formData.errors?.author ? 'error' : ''}`}
                                     required
                                 />
-                                {errors.author && <span className="error-message">{errors.author}</span>}
+                                {formData.errors?.author && <span className="error-message">{formData.errors.author}</span>}
                             </div>
                         </div>
                         <div className="form-spacing">
@@ -260,17 +260,14 @@ export default function AddBook() {
                             <input
                                 id="publishedDate"
                                 type="date"
-                                value={publishedDate}
+                                value={formData.publishedDate}
                                 onChange={(e) => {
-                                    setPublishedDate(e.target.value)
-                                    if (errors.publishedDate) {
-                                        setErrors({ ...errors, publishedDate: '' })
-                                    }
+                                    setFormData({ ...formData, publishedDate: e.target.value })
                                 }}
-                                className={`form-input ${errors.publishedDate ? 'error' : ''}`}
+                                className={`form-input ${formData.errors?.publishedDate ? 'error' : ''}`}
                                 required
                             />
-                            {errors.publishedDate && <span className="error-message">{errors.publishedDate}</span>}
+                            {formData.errors?.publishedDate && <span className="error-message">{formData.errors.publishedDate}</span>}
                         </div>
                         <div className="form-spacing">
                             <label htmlFor="description" className="form-label">
@@ -278,18 +275,15 @@ export default function AddBook() {
                             </label>
                             <textarea
                                 id="description"
-                                value={description}
+                                value={formData.description}
                                 onChange={(e) => {
-                                    setDescription(e.target.value)
-                                    if (errors.description) {
-                                        setErrors({ ...errors, description: '' })
-                                    }
+                                    setFormData({ ...formData, description: e.target.value })
                                 }}
                                 rows={4}
-                                className={`form-input ${errors.description ? 'error' : ''}`}
+                                className={`form-input ${formData.errors?.description ? 'error' : ''}`}
                                 required
                             />
-                            {errors.description && <span className="error-message">{errors.description}</span>}
+                            {formData.errors?.description && <span className="error-message">{formData.errors.description}</span>}
                         </div>
                         <div className="form-spacing">
                             <button 
@@ -305,4 +299,4 @@ export default function AddBook() {
             </div>
         </div>
     )
-}
+})

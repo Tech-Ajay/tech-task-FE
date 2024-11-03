@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, memo } from 'react';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 
@@ -11,46 +11,45 @@ interface ImageCacheProps {
   onError?: (e: React.SyntheticEvent<HTMLImageElement, Event>) => void;
 }
 
-const ImageCache = ({ 
-  src, 
-  alt, 
-  width, 
-  height, 
-  className,
-  onError 
-}: ImageCacheProps) => {
+// Create a global WeakMap outside the component
+const memoryCache = new WeakMap<object, string>();
+
+const ImageCache = memo(({ src, alt, width, height, className, onError }: ImageCacheProps) => {
   const [imageSrc, setImageSrc] = useState<string>(src);
 
   useEffect(() => {
-    // Check memory cache first (faster than localStorage)
-    if (ImageCache.memoryCache.has(src)) {
-      setImageSrc(ImageCache.memoryCache.get(src)!);
-      return;
-    }
+    const controller = new AbortController();
+    
+    const loadImage = async () => {
+      const srcKey = { url: src }; // Create an object key for WeakMap
+      if (memoryCache.has(srcKey)) {
+        setImageSrc(memoryCache.get(srcKey)!);
+        return;
+      }
 
-    // Then check localStorage
-    const cachedImage = localStorage.getItem(`img_${src}`);
-    if (cachedImage) {
-      setImageSrc(cachedImage);
-      ImageCache.memoryCache.set(src, cachedImage);
-      return;
-    }
-
-    // If not cached, fetch and cache the image
-    fetch(src)
-      .then(response => response.blob())
-      .then(blob => {
+      try {
+        const response = await fetch(src, { signal: controller.signal });
+        const blob = await response.blob();
         const objectUrl = URL.createObjectURL(blob);
         
-        // Store in both memory and localStorage
-        ImageCache.memoryCache.set(src, objectUrl);
-        localStorage.setItem(`img_${src}`, objectUrl);
+        memoryCache.set(srcKey, objectUrl);
+        
+        if (blob.size < 5 * 1024 * 1024) {
+          localStorage.setItem(`img_${src}`, objectUrl);
+        }
         
         setImageSrc(objectUrl);
-      })
-      .catch(error => {
+      } catch (error: unknown) {
+        if (error instanceof Error && error.name === 'AbortError') return;
         console.error('Error caching image:', error);
-      });
+      }
+    };
+
+    loadImage();
+
+    return () => {
+      controller.abort();
+    };
   }, [src]);
 
   const containerStyle: React.CSSProperties = {
@@ -83,9 +82,6 @@ const ImageCache = ({
       />
     </div>
   );
-}
-
-// Static memory cache
-ImageCache.memoryCache = new Map<string, string>();
+});
 
 export default ImageCache;
